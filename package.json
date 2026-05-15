@@ -17,6 +17,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "firebase": "^12.13.0",
+    "firebase-admin": "^11.10.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
