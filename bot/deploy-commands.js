@@ -25,20 +25,20 @@ const rest = new REST({ version: '10' }).setToken(token);
 	try {
 		console.log('Started refreshing application (/) commands.');
 
-		// If a guild ID is provided and not forcing global, deploy to that guild for immediate availability (dev).
-		// Otherwise deploy global application commands so the bot works in any server.
+		// Global commands are required so the bot works in every server.
+		// Keep an optional guild deploy for instant updates in a dev server.
+		await rest.put(
+			Routes.applicationCommands(clientId),
+			{ body: commands },
+		);
+		console.log('Successfully reloaded global (/) commands.');
+
 		if (guildId && !forceGlobal) {
 			await rest.put(
 				Routes.applicationGuildCommands(clientId, guildId),
 				{ body: commands },
 			);
 			console.log('Successfully reloaded guild (/) commands.');
-		} else {
-			await rest.put(
-				Routes.applicationCommands(clientId),
-				{ body: commands },
-			);
-			console.log('Successfully reloaded global (/) commands.');
 		}
 
 		console.log('Successfully reloaded application (/) commands.');
