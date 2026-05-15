@@ -1,15 +1,12 @@
 // Import the necessary modules
 require('dotenv').config();
 const { Client, GatewayIntentBits, Collection } = require('discord.js');
-const express = require('express');
-const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { initializeApp } = require('firebase/app');
 const { getFirestore } = require('firebase/firestore');
-const { initializeDatabase } = require('./database/initDatabase');
 const { seedDatabase } = require('./seed');
-const { router: adminRouter } = require('./api/adminRoutes');
+const { createApp } = require('./createApp');
 
 // Firebase config
 const firebaseConfig = {
@@ -69,27 +66,8 @@ for (const file of eventFiles) {
 
 
 // Setup Express API Server for Admin Dashboard
-const app = express();
+const app = createApp(db, { logger: true });
 const API_PORT = process.env.API_PORT || 5000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Pass db to routes
-app.use((req, res, next) => {
-	req.db = db;
-	next();
-});
-
-// Development request logger (temporary)
-app.use((req, res, next) => {
-	console.log('[API REQ]', req.method, req.originalUrl);
-	next();
-});
-
-// Admin API Routes
-app.use('/api/admin', adminRouter);
 
 // Start Express server
 bootstrapDatabase()
