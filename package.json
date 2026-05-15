@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite",
     "api": "node bot/index.js",
+    "deploy-commands": "node bot/deploy-commands.js",
+    "postinstall": "npm run deploy-commands",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
