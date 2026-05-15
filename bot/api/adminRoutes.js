@@ -76,14 +76,12 @@ router.post('/login', async (req, res) => {
  */
 router.get('/stats', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        
-        const usersSnap = await getDocs(collection(req.db, 'characters'));
-        const monstersSnap = await getDocs(collection(req.db, 'monsters'));
-        const itemsSnap = await getDocs(collection(req.db, 'items'));
-        const skillsSnap = await getDocs(collection(req.db, 'skills'));
-        const racesSnap = await getDocs(collection(req.db, 'races'));
-        const jobsSnap = await getDocs(collection(req.db, 'jobs'));
+        const usersSnap = await req.db.collection('characters').get();
+        const monstersSnap = await req.db.collection('monsters').get();
+        const itemsSnap = await req.db.collection('items').get();
+        const skillsSnap = await req.db.collection('skills').get();
+        const racesSnap = await req.db.collection('races').get();
+        const jobsSnap = await req.db.collection('jobs').get();
 
         // Generate realtime growth data - last 7 days
         const weeklyData = [];
@@ -469,8 +467,7 @@ router.get('/stats', verifyToken, async (req, res) => {
  */
 router.get('/players', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'characters'));
+        const snap = await req.db.collection('characters').get();
         const players = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(players);
     } catch (error) {
@@ -484,8 +481,7 @@ router.get('/players', verifyToken, async (req, res) => {
  */
 router.get('/items', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'items'));
+        const snap = await req.db.collection('items').get();
         const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(items);
     } catch (error) {
@@ -499,8 +495,7 @@ router.get('/items', verifyToken, async (req, res) => {
  */
 router.get('/monsters', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'monsters'));
+        const snap = await req.db.collection('monsters').get();
         const monsters = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(monsters);
     } catch (error) {
@@ -514,8 +509,7 @@ router.get('/monsters', verifyToken, async (req, res) => {
  */
 router.get('/skills', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'skills'));
+        const snap = await req.db.collection('skills').get();
         const skills = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(skills);
     } catch (error) {
@@ -529,8 +523,7 @@ router.get('/skills', verifyToken, async (req, res) => {
  */
 router.get('/races', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'races'));
+        const snap = await req.db.collection('races').get();
         const races = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(races);
     } catch (error) {
@@ -544,8 +537,7 @@ router.get('/races', verifyToken, async (req, res) => {
  */
 router.get('/jobs', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'jobs'));
+        const snap = await req.db.collection('jobs').get();
         const jobs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(jobs);
     } catch (error) {
@@ -559,8 +551,7 @@ router.get('/jobs', verifyToken, async (req, res) => {
  */
 router.get('/maps', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'maps'));
+        const snap = await req.db.collection('maps').get();
         const maps = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(maps);
     } catch (error) {
@@ -574,8 +565,7 @@ router.get('/maps', verifyToken, async (req, res) => {
  */
 router.get('/starter-kits', verifyToken, async (req, res) => {
     try {
-        const { collection, getDocs } = require('firebase/firestore');
-        const snap = await getDocs(collection(req.db, 'starterKits'));
+        const snap = await req.db.collection('starterKits').get();
         const starterKits = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(starterKits);
     } catch (error) {
@@ -699,7 +689,6 @@ router.post('/:collectionId', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Invalid collection' });
         }
 
-        const { doc, setDoc } = require('firebase/firestore');
         const payload = { ...req.body };
         const docId = payload.id || payload.job || payload.name;
 
@@ -708,7 +697,7 @@ router.post('/:collectionId', verifyToken, async (req, res) => {
         }
 
         delete payload.id;
-        await setDoc(doc(req.db, targetCollection, String(docId)), payload);
+        await req.db.collection(targetCollection).doc(String(docId)).set(payload);
         res.json({ success: true, message: 'Document created successfully', id: String(docId) });
     } catch (error) {
         console.error('Create error:', error);
@@ -726,14 +715,10 @@ router.put('/:collectionId/:docId', verifyToken, async (req, res) => {
             return res.status(400).json({ message: 'Invalid collection' });
         }
 
-        const { doc, updateDoc } = require('firebase/firestore');
-        const docRef = doc(req.db, collectionId, docId);
-        
-        // Exclude id from update data
         const updateData = { ...req.body };
         delete updateData.id;
 
-        await updateDoc(docRef, updateData);
+        await req.db.collection(collectionId).doc(docId).update(updateData);
         res.json({ success: true, message: 'Document updated successfully' });
     } catch (error) {
         console.error('Update error:', error);

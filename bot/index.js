@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const initFirebaseAdmin = require('../api/_firebaseAdmin');
 const { initializeApp } = require('firebase/app');
 const { getFirestore } = require('firebase/firestore');
 const { initializeDatabase } = require('./database/initDatabase');
@@ -23,12 +24,21 @@ const firebaseConfig = {
   measurementId: process.env.FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const firebaseApp = initializeApp(firebaseConfig);
-const db = getFirestore(firebaseApp);
-
+// Initialize Firebase Admin (server-side). Uses FIREBASE_SERVICE_ACCOUNT_* env vars.
+let db = null; // client DB used by bot events
+let adminDb = null; // admin DB used by express routes
 async function bootstrapDatabase() {
-	await seedDatabase(db);
+	// initialize admin SDK (uses service account env vars)
+	const init = initFirebaseAdmin();
+	adminDb = init.db;
+
+	// initialize client SDK for bot/game logic (uses VITE/CLIENT env vars)
+	const firebaseApp = initializeApp(firebaseConfig);
+	const clientDb = getFirestore(firebaseApp);
+	db = clientDb;
+
+	// seed using client DB so existing seed logic (firebase modular) works
+	await seedDatabase(clientDb);
 }
 
 // Discord bot token
@@ -63,7 +73,7 @@ for (const file of eventFiles) {
 	if (event.once) {
 		client.once(event.name, (...args) => event.execute(...args));
 	} else {
-		client.on(event.name, (...args) => event.execute(...args, db));
+	 client.on(event.name, (...args) => event.execute(...args, db));
 	}
 }
 
@@ -78,7 +88,7 @@ app.use(express.json());
 
 // Pass db to routes
 app.use((req, res, next) => {
-	req.db = db;
+	req.db = adminDb;
 	next();
 });
 

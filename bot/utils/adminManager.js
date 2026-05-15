@@ -1,6 +1,77 @@
 // Admin Management Utilities
-const { doc, setDoc, getDoc, collection, getDocs, updateDoc, deleteDoc, query, where } = require('firebase/firestore');
 const crypto = require('crypto');
+
+// Helper to detect admin SDK (server) vs client modular SDK
+function isAdminDb(db) {
+    return db && typeof db.collection === 'function';
+}
+
+async function getDocSnapshot(db, collectionName, id) {
+    if (isAdminDb(db)) {
+        const ref = db.collection(collectionName).doc(String(id));
+        return await ref.get();
+    } else {
+        const { doc, getDoc } = require('firebase/firestore');
+        const ref = doc(db, collectionName, String(id));
+        return await getDoc(ref);
+    }
+}
+
+async function setDocument(db, collectionName, id, data) {
+    if (isAdminDb(db)) {
+        const ref = db.collection(collectionName).doc(String(id));
+        return await ref.set(data);
+    } else {
+        const { doc, setDoc } = require('firebase/firestore');
+        const ref = doc(db, collectionName, String(id));
+        return await setDoc(ref, data);
+    }
+}
+
+async function updateDocument(db, collectionName, id, data) {
+    if (isAdminDb(db)) {
+        const ref = db.collection(collectionName).doc(String(id));
+        return await ref.update(data);
+    } else {
+        const { doc, updateDoc } = require('firebase/firestore');
+        const ref = doc(db, collectionName, String(id));
+        return await updateDoc(ref, data);
+    }
+}
+
+async function deleteDocument(db, collectionName, id) {
+    if (isAdminDb(db)) {
+        const ref = db.collection(collectionName).doc(String(id));
+        return await ref.delete();
+    } else {
+        const { doc, deleteDoc } = require('firebase/firestore');
+        const ref = doc(db, collectionName, String(id));
+        return await deleteDoc(ref);
+    }
+}
+
+async function getCollectionDocs(db, collectionName, constraints = []) {
+    if (isAdminDb(db)) {
+        let ref = db.collection(collectionName);
+        // Basic where constraints support
+        for (const c of constraints) {
+            // c = { field, op, value }
+            ref = ref.where(c.field, c.op, c.value);
+        }
+        const snap = await ref.get();
+        return snap.docs;
+    } else {
+        const { collection, getDocs, query, where } = require('firebase/firestore');
+        const colRef = collection(db, collectionName);
+        let q = colRef;
+        if (constraints.length > 0) {
+            const wheres = constraints.map(c => where(c.field, c.op, c.value));
+            q = query(colRef, ...wheres);
+        }
+        const snap = await getDocs(q);
+        return snap.docs;
+    }
+}
 
 /**
  * Create admin account
@@ -17,10 +88,8 @@ async function createAdminAccount(db, username, password, email, role = 'admin')
         const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
         
         // Check if username exists
-        const adminRef = doc(db, 'admins', username);
-        const existingAdmin = await getDoc(adminRef);
-        
-        if (existingAdmin.exists()) {
+        const existingAdmin = await getDocSnapshot(db, 'admins', username);
+        if (existingAdmin.exists && existingAdmin.exists()) {
             throw new Error('Username already exists');
         }
 
@@ -36,7 +105,7 @@ async function createAdminAccount(db, username, password, email, role = 'admin')
             isActive: true
         };
 
-        await setDoc(adminRef, adminData);
+        await setDocument(db, 'admins', username, adminData);
         
         return {
             success: true,
@@ -62,14 +131,13 @@ async function createAdminAccount(db, username, password, email, role = 'admin')
  */
 async function verifyAdminCredentials(db, username, password) {
     try {
-        const adminRef = doc(db, 'admins', username);
-        const adminSnap = await getDoc(adminRef);
+        const adminSnap = await getDocSnapshot(db, 'admins', username);
 
-        if (!adminSnap.exists()) {
+        if (!adminSnap.exists && !adminSnap.exists()) {
             return null;
         }
 
-        const admin = adminSnap.data();
+        const admin = isAdminDb(db) ? adminSnap.data() : adminSnap.data();
         const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
         if (admin.passwordHash !== passwordHash) {
@@ -81,9 +149,7 @@ async function verifyAdminCredentials(db, username, password) {
         }
 
         // Update last login
-        await updateDoc(adminRef, {
-            lastLogin: new Date()
-        });
+        await updateDocument(db, 'admins', username, { lastLogin: new Date() });
 
         return {
             username: admin.username,
@@ -147,17 +213,15 @@ function getPermissionsByRole(role) {
  */
 async function getAllAdmins(db) {
     try {
-        const adminsCollection = collection(db, 'admins');
-        const adminsSnap = await getDocs(adminsCollection);
+        const docs = await getCollectionDocs(db, 'admins');
         const admins = [];
-
-        adminsSnap.forEach(doc => {
+        for (const d of docs) {
             admins.push({
-                username: doc.id,
-                ...doc.data(),
-                passwordHash: undefined // Don't expose password hash
+                username: isAdminDb(db) ? d.id : d.id,
+                ...d.data(),
+                passwordHash: undefined
             });
-        });
+        }
 
         return admins;
     } catch (error) {
@@ -174,8 +238,7 @@ async function getAllAdmins(db) {
  */
 async function updateAdminRole(db, username, newRole) {
     try {
-        const adminRef = doc(db, 'admins', username);
-        await updateDoc(adminRef, {
+        await updateDocument(db, 'admins', username, {
             role: newRole,
             permissions: getPermissionsByRole(newRole)
         });
@@ -194,8 +257,7 @@ async function updateAdminRole(db, username, newRole) {
  */
 async function deactivateAdmin(db, username) {
     try {
-        const adminRef = doc(db, 'admins', username);
-        await updateDoc(adminRef, {
+        await updateDocument(db, 'admins', username, {
             isActive: false
         });
 
@@ -217,10 +279,8 @@ async function deactivateAdmin(db, username) {
  */
 async function updateAdminCredentials(db, currentUsername, updates = {}) {
     try {
-        const adminRef = doc(db, 'admins', currentUsername);
-        const adminSnap = await getDoc(adminRef);
-
-        if (!adminSnap.exists()) {
+        const adminSnap = await getDocSnapshot(db, 'admins', currentUsername);
+        if (!adminSnap.exists && !adminSnap.exists()) {
             throw new Error('Admin account not found');
         }
 
@@ -231,10 +291,8 @@ async function updateAdminCredentials(db, currentUsername, updates = {}) {
             : adminData.passwordHash;
 
         if (targetUsername !== currentUsername) {
-            const newAdminRef = doc(db, 'admins', targetUsername);
-            const existingAdmin = await getDoc(newAdminRef);
-
-            if (existingAdmin.exists()) {
+            const existingAdminSnap = await getDocSnapshot(db, 'admins', targetUsername);
+            if (existingAdminSnap.exists && existingAdminSnap.exists()) {
                 throw new Error('Username already exists');
             }
 
@@ -244,8 +302,8 @@ async function updateAdminCredentials(db, currentUsername, updates = {}) {
                 passwordHash: nextPasswordHash
             };
 
-            await setDoc(newAdminRef, updatedAdmin);
-            await deleteDoc(adminRef);
+            await setDocument(db, 'admins', targetUsername, updatedAdmin);
+            await deleteDocument(db, 'admins', currentUsername);
 
             return {
                 success: true,
@@ -258,7 +316,7 @@ async function updateAdminCredentials(db, currentUsername, updates = {}) {
             };
         }
 
-        await updateDoc(adminRef, {
+        await updateDocument(db, 'admins', currentUsername, {
             passwordHash: nextPasswordHash,
             username: currentUsername
         });
