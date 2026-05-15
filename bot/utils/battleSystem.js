@@ -13,10 +13,7 @@ class Battle {
     calculateSkillDamage() {
         if (!this.skill) return this.calculateAutoAttack();
 
-        // Calculate ASPD-based chance to hit
-        const hitChance = this.calculateHitChance();
-        
-        if (!calculateHitMiss(hitChance, this.defender.subStats.FLEE)) {
+        if (!calculateHitMiss(this.attacker.subStats.HIT, this.defender.subStats.FLEE)) {
             this.logs.push(`${this.attacker.name} menyerang tapi MISS!`);
             return 0;
         }
@@ -50,9 +47,7 @@ class Battle {
     }
 
     calculateAutoAttack() {
-        const hitChance = this.calculateHitChance();
-        
-        if (!calculateHitMiss(hitChance, this.defender.subStats.FLEE)) {
+        if (!calculateHitMiss(this.attacker.subStats.HIT, this.defender.subStats.FLEE)) {
             this.logs.push(`${this.attacker.name} menyerang tapi MISS!`);
             return 0;
         }
@@ -76,7 +71,7 @@ class Battle {
     }
 
     calculateHitChance() {
-        return this.attacker.subStats.HIT - this.defender.subStats.FLEE;
+        return this.attacker.subStats.HIT;
     }
 
     applyDamage(damage) {

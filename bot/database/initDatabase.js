@@ -1,5 +1,5 @@
 // Database Initialization and Seed Data
-const { doc, setDoc, collection, getDocs, query, where } = require('firebase/firestore');
+const { doc, setDoc, collection, getDocs } = require('firebase/firestore');
 
 /**
  * Initialize database with seed data
@@ -63,12 +63,12 @@ async function initializeDatabase(db) {
 
         // Seed maps
         const maps = {
-            'Kota_Utama': { region: 'Kota Utama', locations: ['Kedai_Petualang', 'Distrik_Warga', 'Adventurer_Guild', 'BlackSmith', 'Alchemist'] },
-            'Alam_Mistik': { region: 'Alam Mistik', locations: ['Hutan_Berbisik', 'Sarang_Peri_Gaib', 'Suaka_Nymph', 'Desa_Liang_Rumput', 'Sungai_Sihir', 'Hutan_Gelap', 'Hutan_Tak_Tersentuh', 'Pohon_Kehidupan'] },
-            'Dataran_Keras': { region: 'Dataran Keras', locations: ['Kedai_Perbatasan', 'Ngarai_Tulang', 'Desa_Tempa_Dwarf', 'Tenda_Kepala_Orc', 'Dataran_Batu_Crystal', 'Goa_Sinar', 'Kota_Tandus'] },
-            'Kawasan_Bayangan': { region: 'Kawasan Bayangan', locations: ['Pasar_Malam_Gelap', 'Gerbang_Kegelapan', 'Castle_Darah_Vampire', 'Kamp_Bulan_Merah', 'Inti_Abyssal', 'Bukit_Batu_Darah', 'Gunung_Naga_Bayangan', 'Goa_Tanpa_Ujung'] },
-            'Samudra': { region: 'Samudra', locations: ['Pesisir_Berbisik', 'Istana_Palung_Laut', 'Pulau_Hutan_Hijau', 'Kawasan_Makam_Pelaut', 'Palung_Gelap_Tanpa_Dasar', 'Pulau_Pembajak', 'Area_Berkabut'] },
-            'Puncak_Langit': { region: 'Puncak Langit', locations: ['Pijakan_Awan', 'Altar_Angin', 'Kuil_Nirwana', 'Kawah_Naga_Purba', 'Tebing_Badai_Griffin', 'Padang_Pegasus', 'Istana_Langit', 'Taman_Bunga_Nirwana', 'Kota_Atas_Langit'] }
+            'Kota_Utama': { region: 'Kota Utama', safeZone: true, spawnChance: 0, density: 0, locations: ['Kedai_Petualang', 'Distrik_Warga', 'Adventurer_Guild', 'BlackSmith', 'Alchemist'] },
+            'Alam_Mistik': { region: 'Alam Mistik', safeZone: false, spawnChance: 0.42, density: 0.55, locations: ['Hutan_Berbisik', 'Sarang_Peri_Gaib', 'Suaka_Nymph', 'Desa_Liang_Rumput', 'Sungai_Sihir', 'Hutan_Gelap', 'Hutan_Tak_Tersentuh', 'Pohon_Kehidupan'] },
+            'Dataran_Keras': { region: 'Dataran Keras', safeZone: false, spawnChance: 0.38, density: 0.45, locations: ['Kedai_Perbatasan', 'Ngarai_Tulang', 'Desa_Tempa_Dwarf', 'Tenda_Kepala_Orc', 'Dataran_Batu_Crystal', 'Goa_Sinar', 'Kota_Tandus'] },
+            'Kawasan_Bayangan': { region: 'Kawasan Bayangan', safeZone: false, spawnChance: 0.68, density: 0.85, locations: ['Pasar_Malam_Gelap', 'Gerbang_Kegelapan', 'Castle_Darah_Vampire', 'Kamp_Bulan_Merah', 'Inti_Abyssal', 'Bukit_Batu_Darah', 'Gunung_Naga_Bayangan', 'Goa_Tanpa_Ujung'] },
+            'Samudra': { region: 'Samudra', safeZone: false, spawnChance: 0.48, density: 0.6, locations: ['Pesisir_Berbisik', 'Istana_Palung_Laut', 'Pulau_Hutan_Hijau', 'Kawasan_Makam_Pelaut', 'Palung_Gelap_Tanpa_Dasar', 'Pulau_Pembajak', 'Area_Berkabut'] },
+            'Puncak_Langit': { region: 'Puncak Langit', safeZone: false, spawnChance: 0.56, density: 0.72, locations: ['Pijakan_Awan', 'Altar_Angin', 'Kuil_Nirwana', 'Kawah_Naga_Purba', 'Tebing_Badai_Griffin', 'Padang_Pegasus', 'Istana_Langit', 'Taman_Bunga_Nirwana', 'Kota_Atas_Langit'] }
         };
 
         for (const [mapId, mapData] of Object.entries(maps)) {

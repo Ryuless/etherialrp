@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
-const { doc, getDoc, collection, getDocs } = require('firebase/firestore');
+const { doc, getDoc, collection, getDocs, updateDoc } = require('firebase/firestore');
+const { getEncounterConfig, pickEncounterMonster } = require('../utils/encounterSystem');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -61,13 +62,14 @@ module.exports = {
 
             // Pick random location from the region
             const randomLocation = locations[Math.floor(Math.random() * locations.length)];
+            const encounterConfig = getEncounterConfig(regionId, mapData, randomLocation);
 
             // Get all monsters from database
             const monstersCollection = collection(db, 'monsters');
             const monstersSnap = await getDocs(monstersCollection);
             const allMonsters = [];
             monstersSnap.forEach(doc => {
-                allMonsters.push(doc.data());
+                allMonsters.push({ id: doc.id, ...doc.data() });
             });
 
             if (allMonsters.length === 0) {
@@ -78,17 +80,58 @@ module.exports = {
                 return await interaction.reply({ embeds: [embed], ephemeral: true });
             }
 
-            // Pick random monster
-            const encounter = allMonsters[Math.floor(Math.random() * allMonsters.length)];
+            const canSpawnMonster = !encounterConfig.safeZone && Math.random() < encounterConfig.spawnChance;
+            const encounter = canSpawnMonster
+                ? pickEncounterMonster(allMonsters, regionId, mapData, randomLocation)
+                : null;
+
+            const activeEncounter = encounter ? {
+                monsterId: encounter.id || null,
+                monster: encounter,
+                mapId: regionId,
+                mapName: mapData.region,
+                locationId: randomLocation,
+                locationName: randomLocation.replace(/_/g, ' '),
+                createdAt: new Date(),
+                spawnChance: encounterConfig.spawnChance
+            } : null;
+
+            await updateDoc(charRef, {
+                lastExploration: {
+                    mapId: regionId,
+                    mapName: mapData.region,
+                    locationId: randomLocation,
+                    locationName: randomLocation.replace(/_/g, ' '),
+                    exploredAt: new Date()
+                },
+                ...(activeEncounter ? { activeEncounter } : {})
+            });
+
+            if (!encounter) {
+                const embed = new EmbedBuilder()
+                    .setColor(encounterConfig.safeZone ? 'Green' : 'Blue')
+                    .setTitle(encounterConfig.safeZone ? '🏘️ Zona Aman' : '🌿 Perjalanan Tenang')
+                    .setDescription(
+                        encounterConfig.safeZone
+                            ? `Anda berada di ${randomLocation.replace(/_/g, ' ')}. Area ini adalah safe zone, jadi monster tidak akan muncul.`
+                            : `Saat menjelajahi ${randomLocation.replace(/_/g, ' ')}, tidak ada monster yang muncul. Coba jelajahi lagi atau pindah ke area yang lebih berbahaya.`
+                    )
+                    .addFields({
+                        name: 'Peluang Spawn',
+                        value: `${Math.round(encounterConfig.spawnChance * 100)}%`
+                    });
+
+                return await interaction.reply({ embeds: [embed] });
+            }
 
             const embed = new EmbedBuilder()
                 .setColor('Red')
                 .setTitle('🎲 Perjumpaan di Lokasi!')
-                .setDescription(`Saat menjelajahi ${randomLocation.replace(/_/g, ' ')}, Anda menemukan...`)
+                .setDescription(`Saat menjelajahi ${randomLocation.replace(/_/g, ' ')}, Anda menemukan monster!`)
                 .addFields(
                     {
                         name: `🧟 ${encounter.name}`,
-                        value: `Level: ${encounter.level}\nHP: ${encounter.hp}\nATK: ${encounter.atk}\nElement: ${encounter.element}`,
+                        value: `Level: ${encounter.level}\nHP: ${encounter.hp}\nATK: ${encounter.atk}\nElement: ${encounter.element}\nSpawn Chance: ${Math.round(encounterConfig.spawnChance * 100)}%`,
                         inline: true
                     },
                     {
@@ -97,7 +140,7 @@ module.exports = {
                         inline: true
                     }
                 )
-                .setFooter({ text: 'Gunakan /battle untuk melawan musuh ini' });
+                .setFooter({ text: 'Gunakan /battle untuk melawan monster ini' });
 
             await interaction.reply({ embeds: [embed] });
 

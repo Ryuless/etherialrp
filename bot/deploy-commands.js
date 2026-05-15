@@ -7,7 +7,8 @@ const { Routes } = require('discord.js');
 // Client ID (from .env). Guild ID is optional — commands will be registered globally
 const clientId = process.env.DISCORD_CLIENT_ID; // You need to add this to your .env file
 const guildId = process.env.DISCORD_GUILD_ID; // Optional: keep for local/dev fast deploys
-const forceGlobal = process.env.FORCE_GLOBAL === 'true'; // Set to 'true' to force global deploy
+const deployGuildCommands = process.env.DEPLOY_GUILD_COMMANDS === 'true'; // Explicitly enable guild deploy for dev
+const clearGuildCommands = process.env.CLEAR_GUILD_COMMANDS === 'true'; // Explicitly remove guild commands when needed
 const token = process.env.DISCORD_BOT_TOKEN;
 
 const commands = [];
@@ -26,14 +27,20 @@ const rest = new REST({ version: '10' }).setToken(token);
 		console.log('Started refreshing application (/) commands.');
 
 		// Global commands are required so the bot works in every server.
-		// Keep an optional guild deploy for instant updates in a dev server.
+		// Keep guild deploy disabled by default to avoid duplicate command entries.
 		await rest.put(
 			Routes.applicationCommands(clientId),
 			{ body: commands },
 		);
 		console.log('Successfully reloaded global (/) commands.');
 
-		if (guildId && !forceGlobal) {
+		if (guildId && clearGuildCommands) {
+			await rest.put(
+				Routes.applicationGuildCommands(clientId, guildId),
+				{ body: [] },
+			);
+			console.log('Successfully cleared guild (/) commands.');
+		} else if (guildId && deployGuildCommands) {
 			await rest.put(
 				Routes.applicationGuildCommands(clientId, guildId),
 				{ body: commands },
