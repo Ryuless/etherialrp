@@ -19,7 +19,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['bot/**/*.js', 'api/**/*.js', 'eslint.config.js'],
+    files: ['bot/**/*.js', 'eslint.config.js'],
     languageOptions: {
       globals: globals.node,
     },

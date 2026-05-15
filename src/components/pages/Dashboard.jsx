@@ -43,37 +43,37 @@ export default function DashboardHome({ admin }) {
     const [lastUpdate, setLastUpdate] = useState(new Date());
 
     useEffect(() => {
-        fetchStats();
+        const loadStats = async () => {
+            try {
+                const token = localStorage.getItem('adminToken');
+                const baseUrl = import.meta.env.VITE_API_URL || '';
+                const response = await fetch(`${baseUrl}/api/admin/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                if (!response.ok) {
+                    console.error('Stats fetch failed', response.status, response.statusText);
+                    if (response.status === 401 || response.status === 403) {
+                        console.warn('Authorization failed — clearing stored admin token and user. Please login again.');
+                        try { localStorage.removeItem('adminToken'); localStorage.removeItem('adminUser'); } catch (ignoredError) { void ignoredError; }
+                    }
+                    return;
+                }
+                const data = await response.json();
+                // merge with existing state to preserve viewType and any local UI flags
+                setStats(currentStats => ({ ...currentStats, ...data }));
+                setLastUpdate(new Date());
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        };
+
+        void loadStats();
         // Real-time update every second
-        const interval = setInterval(fetchStats, 1000);
+        const interval = setInterval(loadStats, 1000);
         return () => clearInterval(interval);
     }, []);
-
-    const fetchStats = async () => {
-        try {
-            const token = localStorage.getItem('adminToken');
-            const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const response = await fetch(`${baseUrl}/api/admin/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (!response.ok) {
-                console.error('Stats fetch failed', response.status, response.statusText);
-                if (response.status === 401 || response.status === 403) {
-                    console.warn('Authorization failed — clearing stored admin token and user. Please login again.');
-                    try { localStorage.removeItem('adminToken'); localStorage.removeItem('adminUser'); } catch (e) {}
-                }
-                return;
-            }
-            const data = await response.json();
-            // merge with existing state to preserve viewType and any local UI flags
-            setStats(s => ({ ...s, ...data }));
-            setLastUpdate(new Date());
-        } catch (error) {
-            console.error('Error fetching stats:', error);
-        }
-    };
 
     // Format numbers without commas
     const formatNumber = (num) => {
